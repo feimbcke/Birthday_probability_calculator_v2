@@ -118,6 +118,7 @@ body {
   max-width: 22ch;
 }
 .ask .soft { color: var(--ink-2); font-weight: 400; }
+.ask .stress { font-style: normal; color: var(--ink); text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: 5px; text-decoration-color: var(--rule); }
 
 .slot {
   font: inherit;
@@ -139,8 +140,8 @@ body {
   -webkit-appearance: none; margin: 0;
 }
 .slot:hover { background: var(--exact-wash); }
-.slot-people { width: 3.6ch; }
-.slot-share  { width: 2.4ch; }
+.slot-people { width: 4.7ch; }
+.slot-share  { width: 2.6ch; }
 
 .verdict {
   display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px;
@@ -266,6 +267,8 @@ input[type=range]::-moz-range-thumb {
 .tile-v { font-family: var(--font-data); font-variant-numeric: tabular-nums; font-size: 20px; line-height: 1.35; white-space: nowrap; }
 .tiles-note { font-family: var(--font-data); font-size: 11.5px; color: var(--muted); margin: 7px 0 4px; }
 .warn { font-size: 13px; color: var(--ink-2); margin: 10px 0 0; padding-left: 11px; border-left: 2px solid var(--hit); max-width: 52ch; }
+.off-lede { font-size: 16px; line-height: 1.5; margin: 4px 0 16px; padding-left: 13px; border-left: 2px solid var(--exact); }
+.off-note { font-size: 13.5px; color: var(--ink-2); margin: 0 0 12px; max-width: 58ch; }
 .tile-v.sim { color: var(--sim); }
 .tile-v.exact { color: var(--exact); }
 
@@ -280,10 +283,20 @@ td:first-child, th:first-child { text-align: left; }
 tr.here td { color: var(--exact); font-weight: 700; }
 
 /* ── colophon ─────────────────────────────────────────────── */
-.colophon { margin-top: 34px; padding-top: 16px; border-top: 1.5px solid var(--ink); display: grid; gap: 20px; grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
-@media (max-width: 780px) { .colophon { grid-template-columns: 1fr; } }
-.colophon p { margin: 8px 0 0; color: var(--ink-2); font-size: 13.5px; max-width: 62ch; }
+.colophon { margin-top: 34px; padding-top: 18px; border-top: 1.5px solid var(--ink); }
+.colophon-title { font-size: clamp(24px, 3vw, 34px); font-weight: 600; margin: 0; letter-spacing: -0.02em; }
+.colophon-lede { margin: 6px 0 26px; font-size: 15px; color: var(--ink-2); max-width: 68ch; }
+.essay { display: grid; gap: 18px 34px; grid-template-columns: minmax(0,1fr) minmax(0,1fr); align-items: start; }
+.essay .col { display: grid; gap: 18px; align-content: start; }
+@media (max-width: 860px) { .essay { grid-template-columns: 1fr; } }
+.essay section { background: var(--surface); border: 1px solid var(--hairline); border-radius: 3px; padding: 18px 20px 20px; }
+.essay p { margin: 9px 0 0; color: var(--ink-2); font-size: 13.5px; line-height: 1.62; }
+.essay b { color: var(--ink); font-weight: 600; }
 .colophon code { font-family: var(--font-data); font-size: 12.5px; color: var(--ink); background: var(--surface-2); padding: 1px 5px; border-radius: 2px; }
+.formula { font-family: var(--font-data); font-size: 13px; color: var(--ink) !important; background: var(--surface-2);
+  border-left: 2px solid var(--exact); padding: 10px 13px; margin: 13px 0 !important; overflow-x: auto; }
+.formula sup { font-size: 0.78em; }
+.colophon-foot { margin: 24px 0 0; font-family: var(--font-data); font-size: 11.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
 
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
@@ -305,15 +318,16 @@ tr.here td { color: var(--exact); font-weight: 700; }
         <h1 class="ask">
           <span class="soft">In a group of</span>
           <label class="vh" for="people">Number of people in the group</label>
-          <input class="slot slot-people num" id="people" type="number" min="1" max="1000" step="1" value="23">
+          <input class="slot slot-people num" id="people" type="number" min="1" max="1500" step="1" value="23">
           <span class="soft">people, how likely is it that</span>
+          <em class="stress">at least</em>
           <label class="vh" for="share">People sharing one birthday</label>
-          <input class="slot slot-share num" id="share" type="number" min="2" max="12" step="1" value="3">
+          <input class="slot slot-share num" id="share" type="number" min="2" max="30" step="1" value="2">
           <span class="soft">share a birthday?</span>
         </h1>
       </div>
       <div>
-        <div class="tag">Exact probability</div>
+        <div class="tag" id="figure-label">Exact probability</div>
         <div class="verdict">
           <div class="verdict-figure num" id="figure">—</div>
           <div class="verdict-side">
@@ -386,17 +400,31 @@ tr.here td { color: var(--exact); font-weight: 700; }
           <div class="card-note" id="curve-note"></div>
         </div>
       </div>
-      <div class="chart">
-        <svg id="curve" viewBox="0 0 480 300" role="img" aria-labelledby="curve-title"><title id="curve-title">Exact probability of a shared birthday against group size</title></svg>
-        <div class="tip" id="curve-tip"></div>
+      <div id="curve-body">
+        <div class="chart">
+          <svg id="curve" viewBox="0 0 480 300" role="img" aria-labelledby="curve-title"><title id="curve-title">Exact probability of a shared birthday against group size</title></svg>
+          <div class="tip" id="curve-tip"></div>
+        </div>
+        <div class="legend">
+          <span class="key"><span class="swatch" style="background:var(--exact)"></span> Exact probability</span>
+          <span class="key"><span class="swatch dash"></span> Your group</span>
+        </div>
+        <div class="marks" id="marks"></div>
+        <div style="margin-top:14px"><button class="ghost" id="table-toggle" type="button" aria-expanded="false">Show the numbers</button></div>
+        <div class="table-wrap" id="table-wrap" hidden></div>
       </div>
-      <div class="legend">
-        <span class="key"><span class="swatch" style="background:var(--exact)"></span> Exact probability</span>
-        <span class="key"><span class="swatch dash"></span> Your group</span>
+
+      <div id="curve-off" hidden>
+        <p class="off-lede">Past <b>10 people on one day</b> this page stops computing and starts sampling. The
+        figure at the top comes from the simulation, and the panel beside this one is the whole answer.</p>
+        <p class="off-note">Not because the mathematics runs out — the same formula holds for any threshold. It is a
+        speed limit. The exact method builds a polynomial whose degree has to reach the size of the group, and the
+        work grows with the <em>square</em> of that. Beyond ten, the group sizes where the odds get interesting run
+        past 1,300 people, and the exact pass would take long enough to stall a page that recalculates while you
+        type. Sampling has no such problem: its cost grows with the group, not with the square of it.</p>
+        <p class="off-note">The trade is precision. A simulation answers to about ±0.3 points at 100,000 trials,
+        where the exact method answers to fourteen digits.</p>
       </div>
-      <div class="marks" id="marks"></div>
-      <div style="margin-top:14px"><button class="ghost" id="table-toggle" type="button" aria-expanded="false">Show the numbers</button></div>
-      <div class="table-wrap" id="table-wrap" hidden></div>
     </section>
 
     <section class="card">
@@ -425,14 +453,98 @@ tr.here td { color: var(--exact); font-weight: 700; }
 
   <!-- ── COLOPHON ─────────────────────────────────────────── -->
   <footer class="colophon">
-    <div>
-      <span class="tag">Why both numbers</span>
-      <p>This question has a closed form, so the headline figure is not estimated at all. The chance that <em>no</em> day holds <span class="num" id="c-n">3</span> or more birthdays is <code>M! / 365^M</code> times the coefficient of <code>x^M</code> in <code>(1 + x + x²/2! + … + x^(N-1)/(N-1)!)^365</code>. The page multiplies that polynomial out directly — exact to roughly 14 digits, in about a millisecond.</p>
+    <h2 class="colophon-title display">About the math</h2>
+    <p class="colophon-lede">Two methods answer the same question on this page. One counts, one samples. Everything
+    below assumes a 365-day year with birthdays spread uniformly and independently — the standard idealisation.</p>
+
+    <div class="essay">
+     <div class="col">
+      <section>
+        <span class="tag">The question</span>
+        <p>Fix a group of <b>M</b> people and a threshold <b>N</b>. We want the probability that <b>some day of the
+        year is the birthday of at least N of them</b>. Note what this is not: it is not about a particular date,
+        and it is not about a particular group of N people. Any day will do, and any N of the M will do. That is
+        exactly why the answer is so much larger than intuition suggests.</p>
+        <p>Assigning M people to 365 days gives <code>365^M</code> equally likely outcomes. Both methods below are
+        just two ways of asking how many of those outcomes contain a clash.</p>
+      </section>
+
+      <section>
+        <span class="tag">Method 1 — counting, exactly</span>
+        <p>Direct counting is awkward, because a group can clash on several days at once and those cases would be
+        double-counted. So we count the <b>complement</b> instead: arrangements in which <em>every</em> day holds
+        fewer than N people. Then</p>
+        <p class="formula">P(at least N share) = 1 − P(no day holds N or more)</p>
+        <p>The complement is a classic exponential-generating-function count. A single day that receives fewer than
+        N people contributes the truncated series <code>1 + x + x²/2! + … + x^(N-1)/(N-1)!</code>, where the
+        coefficient of <code>x^k</code> carries the <code>1/k!</code> that accounts for the people on that day being
+        interchangeable. Because the 365 days are filled independently, the whole year is that series raised to the
+        365th power. Reading off the coefficient of <code>x^M</code> and multiplying by <code>M!</code> turns it
+        back into a count of labelled people:</p>
+        <p class="formula">P(no day holds N or more) = M!/365<sup>M</sup> · [x<sup>M</sup>] (1 + x + x²/2! + … + x<sup>N-1</sup>/(N-1)!)<sup>365</sup></p>
+        <p>where <code>[x^M]</code> means "the coefficient of x^M". The page multiplies that polynomial out by
+        repeated squaring, so it costs about log₂(365) ≈ 9 multiplications rather than 365.</p>
+        <p><b>Sanity check.</b> At N = 2 the series is just <code>1 + x</code>, and <code>(1+x)^365</code> has
+        coefficient <code>C(365, M)</code>. Times <code>M!</code> that is <code>365 · 364 · … · (365−M+1)</code>,
+        the familiar formula for the ordinary birthday problem. The general version is the same idea with a longer
+        series.</p>
+        <p><b>One numerical wrinkle</b>, if your teacher is the sort to ask. Raised to the 365th power those
+        coefficients span hundreds of orders of magnitude, and the smallest ones vanish in floating point — which
+        would silently report certainty where there is none. The page avoids it by <em>tilting</em> the series
+        first: rescaling it into a genuine probability distribution (a truncated Poisson) so the coefficients
+        become probabilities between 0 and 1, largest exactly where the interesting group sizes are. The tilt is
+        undone afterwards in logarithms, so the answer is unchanged — only the arithmetic is made safe.</p>
+        <p>The results match the known sequence for the smallest group giving even odds — 23, 88, 187, 313, 460,
+        623, 798, 985, 1181 people for thresholds 2 through 10.</p>
+      </section>
+     </div>
+
+     <div class="col">
+      <section>
+        <span class="tag">Method 2 — sampling (Monte Carlo)</span>
+        <p>The other approach ignores the counting entirely and just <b>runs the experiment</b>. One trial: draw a
+        birthday for each of the M people, uniformly from 1 to 365, independently; then check whether any single day
+        collected N or more. That is one yes-or-no outcome. Repeat Z times and report the fraction that hit:</p>
+        <p class="formula">p̂ = (trials that hit) / Z</p>
+        <p>Each trial is a Bernoulli(p) variable, so the number of hits is Binomial(Z, p). That makes p̂ an
+        <b>unbiased estimator</b> — E[p̂] = p — with variance p(1−p)/Z and standard error</p>
+        <p class="formula">SE = √( p(1−p) / Z )</p>
+        <p>The <b>law of large numbers</b> is why p̂ converges to p at all; the <b>central limit theorem</b> is why
+        the error is approximately normal, which is where the ±1.96·SE band on the chart comes from. That band is
+        drawn as a funnel and the estimate wanders inside it.</p>
+        <p>The important consequence is the shape of that funnel. Error falls like <b>1/√Z</b>, so ten thousand
+        trials are only ten times better than a hundred, and buying one more decimal digit costs a hundred times the
+        work. At 1,000 trials the estimate is worth about ±3 points; at 1,000,000 it is worth about ±0.1. This is
+        the single most useful thing on the page: it is the reason exact methods are worth the trouble whenever
+        they exist.</p>
+      </section>
+
+      <section>
+        <span class="tag">Where the exact method stops, and why</span>
+        <p>This page computes exactly up to <b>10 people sharing a day</b> and switches to simulation above that.
+        That boundary is a practical budget, <b>not</b> a mathematical wall — the formula above is valid for every
+        N, and nothing about it breaks at 11.</p>
+        <p>What breaks is the time budget. The polynomial's degree has to reach the size of the group, and the cost
+        grows with the square of that. Past a threshold of 10, the group sizes where the answer stops being
+        approximately zero run into the thousands — a threshold of 11 needs about 1,385 people for even odds, 12
+        needs about 1,596 — so the exact pass gets slow enough to be felt on a page that recalculates as you type.
+        Sampling has no such scaling problem, so it takes over.</p>
+        <p>Worth knowing: high thresholds are unlikely in small groups by a wide margin. Getting 15 people onto one
+        day needs a crowd of several thousand before it stops being a once-in-a-lifetime event, and below that a
+        simulation will honestly report zero hits out of every trial.</p>
+      </section>
+
+      <section>
+        <span class="tag">The assumptions, and how wrong they are</span>
+        <p>Real birthdays are not uniform. There is seasonal clustering, a weekday effect from scheduled deliveries,
+        and a dip around 29 February. Any departure from uniformity <b>increases</b> the chance of a coincidence —
+        the uniform case is the one that spreads people out the most — so every figure here is a mild
+        <em>underestimate</em> of the real world. Leap days are not modelled at all, which pushes very slightly the
+        other way. Both effects are small next to the counter-intuitive size of the answer itself.</p>
+      </section>
+     </div>
     </div>
-    <div>
-      <span class="tag">Why simulate anyway</span>
-      <p>The simulation is kept because it shows what the formula hides: how long a random experiment takes to agree, and how wide the error stays until it does. At 1,000 trials the estimate is still worth about ±3 points. Sampling error shrinks with the square root of the trial count, so each extra digit of precision costs a hundred times the work.</p>
-    </div>
+    <p class="colophon-foot">Currently showing the case of at least <span class="num" id="c-n">2</span> people sharing one day.</p>
   </footer>
 
 </main>
@@ -446,7 +558,10 @@ tr.here td { color: var(--exact); font-weight: 700; }
    All coefficients are positive, so there is no cancellation:
    normalising by the max each step keeps it stable to ~1e-14.
    ══════════════════════════════════════════════════════════════ */
-const DAYS = 365, CAP = 1200;
+const DAYS = 365;
+const EXACT_MAX_N = 10;    // above this the page estimates by simulation only
+const MAX_PEOPLE = 1500;
+const MAX_SHARE  = 30;
 
 function lgamma(z) {
   const g = [676.5203681218851, -1259.1392167224028, 771.32342877765313,
@@ -479,34 +594,72 @@ function rescale(p) {
   return Math.log(m);
 }
 
+/* Rough size of the group where the odds first pass a half — used to centre the
+   tilt below, and to scale the slider. (D^(N-1)·N!·ln2)^(1/N) is the standard
+   approximation; it only needs to be in the right neighbourhood. */
+const guess50 = N => Math.exp(((N - 1) * Math.log(DAYS) + lgamma(N + 1) + Math.log(Math.LN2)) / N);
+
+/* Mean of a Poisson tilted by r and truncated to {0…N-1}, and the r that puts
+   that mean where we want it. */
+function tiltMean(r, N) {
+  let s = 0, sk = 0, t = 1;
+  for (let k = 0; k < N; k++) { s += t; sk += k * t; t = t * r / (k + 1); }
+  return sk / s;
+}
+function solveTilt(N, perDay) {
+  if (perDay >= N - 1 - 1e-12) return 1e4;
+  let lo = 1e-12, hi = 1e4;
+  for (let i = 0; i < 200; i++) { const m = (lo + hi) / 2; if (tiltMean(m, N) < perDay) lo = m; else hi = m; }
+  return (lo + hi) / 2;
+}
+
+/* Raising the raw series to the 365th power spreads its coefficients across
+   1e300 or more, and the small ones flush to zero — which used to be misread as
+   "collision certain". Tilting fixes that at the source: rescale the series into
+   a truncated-Poisson distribution first, and the coefficients become
+   P(365 tilted days hold m people in total) — all inside [0,1], summing to one,
+   and largest exactly where the interesting group sizes are. The tilt is undone
+   analytically in logs afterwards, so the answer is unchanged. */
 const curveCache = new Map();
 function exactCurve(N) {
-  const key = N;
-  if (curveCache.has(key)) return curveCache.get(key);
+  if (curveCache.has(N)) return curveCache.get(N);
 
-  let base = new Float64Array(Math.min(N - 1, CAP) + 1);
-  for (let k = 0; k < base.length; k++) base[k] = Math.exp(-lgamma(k + 1));
+  const centre = guess50(N);
+  const pigeon = (N - 1) * DAYS;                    // past this a clash is forced
+  const cap = Math.min(pigeon, clamp(Math.ceil(centre * 2.6), MAX_PEOPLE, 2400));
+  const r = solveTilt(N, clamp(centre / DAYS, 1e-9, N - 1 - 1e-9));
 
-  let result = new Float64Array(1); result[0] = 1;
-  let scale = 0, bscale = rescale(base), e = DAYS;
+  const u = new Float64Array(N);
+  let t = 1, T = 0;
+  for (let k = 0; k < N; k++) { u[k] = t; T += t; t = t * r / (k + 1); }
+  for (let k = 0; k < N; k++) u[k] /= T;
+
+  let q = new Float64Array(1); q[0] = 1;
+  let base = u, scale = 0, bscale = rescale(base), e = DAYS;
   while (e > 0) {
-    if (e & 1) { result = polyMul(result, base, CAP); scale += bscale + rescale(result); }
+    if (e & 1) { q = polyMul(q, base, cap); scale += bscale + rescale(q); }
     e >>= 1;
-    if (e > 0) { base = polyMul(base, base, CAP); bscale = 2 * bscale + rescale(base); }
+    if (e > 0) { base = polyMul(base, base, cap); bscale = 2 * bscale + rescale(base); }
   }
 
-  const P = new Float64Array(CAP + 1);
-  const logD = Math.log(DAYS);
-  for (let m = 0; m <= CAP; m++) {
-    const c = m < result.length ? result[m] : 0;
-    if (c <= 0) { P[m] = 1; continue; }             // underflow ⇒ collision certain
-    P[m] = -Math.expm1(Math.min(0, Math.log(c) + scale + lgamma(m + 1) - m * logD));
+  const P = new Float64Array(Math.max(cap, MAX_PEOPLE) + 1);
+  const logD = Math.log(DAYS), logT = Math.log(T), logr = Math.log(r);
+  let last = 0;
+  for (let m = 0; m < P.length; m++) {
+    if (m > pigeon) { P[m] = 1; last = 1; continue; }
+    const c = m < q.length ? q[m] : 0;
+    if (c <= 0) { P[m] = last; continue; }           // below representable: hold monotone
+    const logNo = lgamma(m + 1) - m * logD + DAYS * logT - m * logr + Math.log(c) + scale;
+    P[m] = Math.max(last, -Math.expm1(Math.min(0, logNo)));
+    last = P[m];
   }
   P[0] = 0;
-  curveCache.set(key, P);
+  curveCache.set(N, P);
   return P;
 }
 
+const isExact = N => N <= EXACT_MAX_N;
+const exactAt = (N, M) => { const P = exactCurve(N); return P[Math.min(M, P.length - 1)]; };
 const firstAtLeast = (P, t) => { for (let i = 0; i < P.length; i++) if (P[i] >= t) return i; return null; };
 
 /* ══════════════════════════════════════════════════════════════
@@ -585,7 +738,7 @@ function niceTicks(min, max, count) {
 /* ══════════════════════════════════════════════════════════════
    4 · STATE
    ══════════════════════════════════════════════════════════════ */
-const state = { people: 23, share: 3, trials: 100000, sample: null, run: null };
+const state = { people: 23, share: 2, trials: 100000, sample: null, run: null, result: null };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const $ = id => document.getElementById(id);
 
@@ -619,14 +772,17 @@ function renderStrip(counts) {
   const levels = Math.max(peak, N, 2);
   const unit = Math.min(26, S.plot / levels);
 
-  // ledger lines — one per person, so a column can be counted by eye
+  // ledger lines — one per person, so a column can be counted by eye. Every
+  // line is drawn; labels thin out when the lines get closer than the type.
+  const stride = Math.max(1, Math.ceil(fs * 1.25 / unit));
   for (let k = 1; k <= levels; k++) {
     const y = S.base - k * unit;
     const on = k === N;
     el('line', { x1: X0, y1: y, x2: X1, y2: y,
                  stroke: on ? 'var(--hit)' : 'var(--rule)', 'stroke-width': on ? 1.5 : 1,
                  'stroke-dasharray': on ? '3 5' : null, opacity: on ? 1 : .55 }, stripSvg);
-    txt(stripSvg, X0 - 6, y + fs * 0.36, k, { 'text-anchor': 'end', 'font-size': fs, fill: on ? 'var(--hit)' : 'var(--muted)' });
+    if (on || k % stride === 0)
+      txt(stripSvg, X0 - 6, y + fs * 0.36, k, { 'text-anchor': 'end', 'font-size': fs, fill: on ? 'var(--hit)' : 'var(--muted)' });
   }
   el('line', { x1: X0, y1: S.base, x2: X1, y2: S.base, stroke: 'var(--rule)', 'stroke-width': 2 }, stripSvg);
 
@@ -681,9 +837,9 @@ let curveGeom = null;
 
 function renderCurve() {
   clear(curveSvg);
-  const P = exactCurve(state.share), M = state.people;
-  const certain = firstAtLeast(P, 0.999) || CAP;
-  const domain = clamp(Math.max(Math.ceil(M * 1.2), Math.ceil(certain * 1.08), 25), 25, CAP);
+  const P = exactCurve(state.share), M = state.people, top = P.length - 1;
+  const certain = firstAtLeast(P, 0.999) || top;
+  const domain = clamp(Math.max(Math.ceil(M * 1.2), Math.ceil(certain * 1.08), 25), 25, top);
 
   const fs = typeSize(curveSvg, C.W);
   const l = 14 + 2.7 * fs, b = 14 + 2.2 * fs;
@@ -743,7 +899,7 @@ function renderMarks(P) {
     const m = firstAtLeast(P, t);
     const d = document.createElement('div');
     d.className = 'mark';
-    d.innerHTML = `<div class="mark-k">${label}</div><div class="mark-v">${m ? commas(m) : '—'}<span class="mark-u">${m ? 'people' : 'beyond 1,200'}</span></div>`;
+    d.innerHTML = `<div class="mark-k">${label}</div><div class="mark-v">${m ? commas(m) : '—'}<span class="mark-u">${m ? 'people' : 'out of range'}</span></div>`;
     box.appendChild(d);
   }
 }
@@ -753,7 +909,7 @@ function renderTable(P, domain) {
   for (const t of [.01, .1, .25, .5, .75, .9, .99, .999]) { const m = firstAtLeast(P, t); if (m) sizes.add(m); }
   const step = Math.max(1, Math.round(domain / 10));
   for (let m = step; m <= domain; m += step) sizes.add(m);
-  const rows = [...sizes].filter(m => m >= 1 && m <= CAP).sort((a, b) => a - b);
+  const rows = [...sizes].filter(m => m >= 1 && m < P.length).sort((a, b) => a - b);
   $('table-wrap').innerHTML =
     `<table><caption class="vh">Exact probability that ${state.share} people share a birthday, by group size</caption>` +
     `<thead><tr><th>Group size</th><th>Probability</th><th>Odds</th></tr></thead><tbody>` +
@@ -785,7 +941,7 @@ let convGeom = null;
 function startRun() {
   if (state.run) return;
   const M = state.people, N = state.share, Z = state.trials;
-  const exact = exactCurve(N)[Math.min(M, CAP)];
+  const exact = isExact(N) ? exactAt(N, M) : null;
 
   const run = { M, N, Z, exact, done: 0, hits: 0, step: 20, track: [],
                 counts: new Int32Array(DAYS), drawn: new Int32Array(M), lastPaint: 0 };
@@ -799,16 +955,12 @@ function startRun() {
 
   // sampling cannot resolve odds this close to the edges — say so plainly
   const warn = $('conv-warn');
-  warn.hidden = exact > 0.005 && exact < 0.995;
+  warn.hidden = exact === null || (exact > 0.005 && exact < 0.995);
   if (!warn.hidden) warn.textContent = exact >= 0.5
     ? 'At odds this high nearly every trial hits, so the estimate parks on 100% and the last decimals stay out of reach. Shrink the group to watch sampling actually work.'
     : 'At odds this low a whole run may record only a handful of hits, so the estimate steps in visible jumps. Raise the trial count, or the group size, for a smoother picture.';
 
-  // fixed y-window so the axis does not jitter mid-run
-  const sd = Math.sqrt(Math.max(exact * (1 - exact), 1e-6) / 200);
-  const pad = Math.max(0.012, 4.2 * sd);
-  run.lo = Math.max(0, exact - pad);
-  run.hi = Math.min(1, exact + pad);
+  run.lo = null;   // y-window is fixed on the first paint, then left alone
 
   const tick = () => {
     if (state.run !== run) return;
@@ -854,21 +1006,34 @@ function startRun() {
     }
     state.run = null;
     $('run').textContent = 'Run simulation';
+    recordResult(run);
   };
   run.raf = requestAnimationFrame(tick);
+}
+
+/* Above the exact ceiling the simulation *is* the answer, so the headline
+   figure has to come from here. */
+function recordResult(run) {
+  if (!run.done) return;
+  const p = run.hits / run.done;
+  state.result = { M: run.M, N: run.N, Z: run.done, p, se: Math.sqrt(Math.max(p * (1 - p), 0) / run.done) };
+  if (!isExact(run.N)) refresh(false);
 }
 
 function paintTiles(run) {
   const p = run.hits / run.done;
   const se = Math.sqrt(Math.max(p * (1 - p), 0) / run.done);
-  $('tiles').innerHTML = [
-    ['Exact', pct(run.exact, true), 'exact'],
-    ['Simulated', pct(p, true), 'sim'],
-    ['Difference', (p >= run.exact ? '+' : '−') + (Math.abs(p - run.exact) * 100).toFixed(3) + ' pt', ''],
-    ['95% margin', '±' + (1.96 * se * 100).toFixed(3) + ' pt', '']
-  ].map(([k, v, c]) => `<div class="tile"><div class="tile-k">${k}</div><div class="tile-v ${c}">${v}</div></div>`).join('');
+  const margin = ['95% margin', '±' + (1.96 * se * 100).toFixed(3) + ' pt', ''];
+  const tiles = run.exact === null
+    ? [['Simulated', pct(p, true), 'sim'], margin,
+       ['Hits', commas(run.hits), ''], ['Trials', commas(run.done), '']]
+    : [['Exact', pct(run.exact, true), 'exact'], ['Simulated', pct(p, true), 'sim'],
+       ['Difference', (p >= run.exact ? '+' : '−') + (Math.abs(p - run.exact) * 100).toFixed(3) + ' pt', ''],
+       margin];
+  $('tiles').innerHTML = tiles
+    .map(([k, v, c]) => `<div class="tile"><div class="tile-k">${k}</div><div class="tile-v ${c}">${v}</div></div>`).join('');
   $('tiles-note').textContent =
-    `${commas(run.done)} trials · ${commas(run.M)} people · ${run.N} sharing one day`;
+    `${commas(run.done)} trials · ${commas(run.M)} people · at least ${run.N} on one day`;
 }
 
 function renderConv(run) {
@@ -876,6 +1041,15 @@ function renderConv(run) {
   const fs = typeSize(convSvg, V.W);
   const l = 14 + 3.2 * fs, b = 14 + 2.2 * fs;
   const px = l, py = V.t, pw = V.W - l - V.r, ph = V.H - V.t - b;
+
+  // centre the window on the exact answer when there is one, otherwise on the
+  // estimate itself — fixed at the first paint so the axis cannot jitter
+  if (run.lo === null) {
+    const c = run.exact === null ? run.hits / run.done : run.exact;
+    const pad = Math.max(0.012, 4.2 * Math.sqrt(Math.max(c * (1 - c), 1e-6) / 200));
+    run.lo = Math.max(0, c - pad);
+    run.hi = Math.min(1, c + pad);
+  }
   const lo = run.lo, hi = run.hi;
   const x0 = Math.log10(20), x1 = Math.log10(Math.max(run.Z, 100));
   const X = n => px + (Math.log10(Math.max(n, 20)) - x0) / (x1 - x0) * pw;
@@ -894,8 +1068,8 @@ function renderConv(run) {
   }
   txt(convSvg, px + pw / 2, V.H - fs * 0.35, 'trials (log scale)', { 'text-anchor': 'middle', 'font-size': fs });
 
-  // 95% band around the exact answer
-  const p = run.exact;
+  // 95% band: around the exact answer when known, else around the estimate
+  const p = run.exact === null ? run.hits / run.done : run.exact;
   let up = '', dn = [];
   for (let i = 0; i <= 60; i++) {
     const n = Math.pow(10, x0 + (x1 - x0) * i / 60);
@@ -905,10 +1079,12 @@ function renderConv(run) {
   }
   el('path', { d: up + dn.reverse().join('') + 'Z', fill: 'var(--exact-wash)' }, convSvg);
 
-  el('line', { x1: px, y1: Y(p), x2: px + pw, y2: Y(p), stroke: 'var(--ink-2)', 'stroke-width': 1.5, 'stroke-dasharray': '5 4' }, convSvg);
-  txt(convSvg, px + pw, Y(p) - 7, 'exact ' + pct(p),
-      { 'text-anchor': 'end', fill: 'var(--ink)', 'font-size': fs * 1.05,
-        stroke: 'var(--surface)', 'stroke-width': fs * 0.3, 'paint-order': 'stroke' });
+  if (run.exact !== null) {
+    el('line', { x1: px, y1: Y(p), x2: px + pw, y2: Y(p), stroke: 'var(--ink-2)', 'stroke-width': 1.5, 'stroke-dasharray': '5 4' }, convSvg);
+    txt(convSvg, px + pw, Y(p) - 7, 'exact ' + pct(p),
+        { 'text-anchor': 'end', fill: 'var(--ink)', 'font-size': fs * 1.05,
+          stroke: 'var(--surface)', 'stroke-width': fs * 0.3, 'paint-order': 'stroke' });
+  }
 
   if (run.track.length > 1) {
     let d = '';
@@ -942,7 +1118,7 @@ convSvg.addEventListener('pointerleave', () => convTip.classList.remove('on'));
 function stopRun(keep) {
   const run = state.run;
   if (run) { cancelAnimationFrame(run.raf); state.run = null; $('run').textContent = 'Run simulation'; }
-  if (keep) { if (run) { renderConv(run); paintTiles(run); } return; }
+  if (keep) { if (run) { renderConv(run); paintTiles(run); recordResult(run); } return; }
   $('tiles').hidden = true;
   $('tiles-note').hidden = true;
   $('conv-warn').hidden = true;
@@ -956,43 +1132,101 @@ function stopRun(keep) {
    8 · WIRING
    ══════════════════════════════════════════════════════════════ */
 function refresh(newSample) {
-  const P = exactCurve(state.share), p = P[Math.min(state.people, CAP)];
-  $('figure').textContent = pct(p);
-  $('odds').textContent = oddsPhrase(p);
-  $('restate').textContent = state.share > state.people
-    ? `${state.share} people cannot share a day in a group of ${state.people}.`
-    : `${commas(state.people)} people · ${state.share} on one day · 365 days`;
-  $('c-n').textContent = state.share;
-  $('people-out').textContent = commas(state.people) + (state.people === 1 ? ' person' : ' people');
+  const N = state.share, M = state.people, exact = isExact(N);
 
-  if (newSample || !state.sample || state.sample.total !== state.people) {
-    state.sample = drawGroup(state.people);
-    state.sample.total = state.people;
+  if (exact) {
+    const p = exactAt(N, M);
+    $('figure').textContent = pct(p);
+    $('odds').textContent = oddsPhrase(p);
+    $('figure-label').textContent = 'Exact probability';
+    $('restate').textContent = N > M
+      ? `${N} people cannot share a day in a group of ${commas(M)}.`
+      : `${commas(M)} people · at least ${N} on one day · 365 days`;
+  } else {
+    const r = state.result;
+    $('figure-label').textContent = 'Estimated by simulation';
+    $('figure').textContent = r ? pct(r.p) : '—';
+    $('odds').textContent = r
+      ? oddsPhrase(r.p) + ' (±' + (1.96 * r.se * 100).toFixed(3) + ' pt)'
+      : 'Run a simulation to estimate this.';
+    $('restate').textContent = r
+      ? `estimated from ${commas(r.Z)} trials · at least ${N} on one day`
+      : `${commas(M)} people · at least ${N} on one day · 365 days`;
+  }
+
+  $('c-n').textContent = N;
+  $('people-out').textContent = commas(M) + (M === 1 ? ' person' : ' people');
+
+  // the slider should stay useful at every threshold, so its span tracks the
+  // group size where the odds actually turn
+  const span = clamp(Math.round(guess50(Math.min(N, EXACT_MAX_N)) * 1.9 + 25), 60, MAX_PEOPLE);
+  $('people-range').max = exact ? span : MAX_PEOPLE;
+  $('people-range').value = Math.min(M, +$('people-range').max);
+
+  // the exact curve, its milestones and its table only exist below the ceiling
+  $('curve-body').hidden = !exact;
+  $('curve-off').hidden = exact;
+  if (!exact) $('curve-note').textContent = 'No exact curve above ' + EXACT_MAX_N + ' people on one day.';
+  if (!exact && !$('table-wrap').hidden) toggleTable(false);
+
+  if (newSample || !state.sample || state.sample.total !== M) {
+    state.sample = drawGroup(M);
+    state.sample.total = M;
     $('strip-sub').textContent = 'Each column is a day of the year. Bar height is how many people in this draw were born that day.';
   }
   renderStrip(state.sample);
-  renderCurve();
+  if (exact) renderCurve();
 }
 
-function setPeople(v) {
-  state.people = clamp(Math.round(v) || 1, 1, 1000);
-  $('people').value = state.people;
-  $('people-range').value = Math.min(state.people, 400);
-  stopRun();
-  refresh(true);
+/* A run is queued rather than fired immediately, so typing "1250" does not
+   start four simulations on the way there. */
+let runTimer = null;
+function scheduleRun() {
+  clearTimeout(runTimer);
+  runTimer = setTimeout(() => { if (!state.run) startRun(); }, 550);
 }
-function setShare(v) {
-  state.share = clamp(Math.round(v) || 2, 2, 12);
-  $('share').value = state.share;
+function invalidate(newSample) {
+  state.result = null;
   stopRun();
-  refresh(false);
+  refresh(newSample);
+  scheduleRun();
 }
 
-$('people').addEventListener('change', e => setPeople(+e.target.value));
-$('people-range').addEventListener('input', e => setPeople(+e.target.value));
-$('share').addEventListener('change', e => setShare(+e.target.value));
+function setPeople(v, writeBack) {
+  const next = clamp(Math.round(v) || 1, 1, MAX_PEOPLE);
+  if (writeBack) $('people').value = next;
+  if (next === state.people) return;
+  state.people = next;
+  invalidate(true);
+}
+function setShare(v, writeBack) {
+  const next = clamp(Math.round(v) || 2, 2, MAX_SHARE);
+  if (writeBack) $('share').value = next;
+  if (next === state.share) return;
+  state.share = next;
+  invalidate(false);
+}
+
+/* `input` keeps the page live as you type; `change` additionally normalises what
+   is in the box once you leave it, so a typed 9999 settles to the ceiling. */
+function bindNumber(id, apply) {
+  const box = $(id);
+  box.addEventListener('input', () => {
+    const raw = box.value.trim();
+    if (raw === '' || !/^\d+$/.test(raw)) return;   // mid-edit: leave the box alone
+    apply(+raw, false);
+  });
+  box.addEventListener('change', () => apply(+box.value, true));
+}
+bindNumber('people', setPeople);
+bindNumber('share', setShare);
+
+$('people-range').addEventListener('input', e => setPeople(+e.target.value, true));
 $('redraw').addEventListener('click', () => { state.sample = null; refresh(true); });
-$('run').addEventListener('click', () => state.run ? stopRun(true) : startRun());
+$('run').addEventListener('click', () => {
+  clearTimeout(runTimer);
+  state.run ? stopRun(true) : startRun();
+});
 
 $('trials').addEventListener('click', e => {
   const b = e.target.closest('button');
@@ -1000,18 +1234,21 @@ $('trials').addEventListener('click', e => {
   state.trials = +b.dataset.n;
   for (const x of $('trials').children) x.setAttribute('aria-pressed', String(x === b));
   $('trials-out').textContent = commas(state.trials);
+  state.result = null;
   stopRun();
+  scheduleRun();
 });
 
-$('table-toggle').addEventListener('click', () => {
-  const w = $('table-wrap'), open = w.hidden;
-  w.hidden = !open;
+function toggleTable(open) {
+  $('table-wrap').hidden = !open;
   $('table-toggle').setAttribute('aria-expanded', String(open));
   $('table-toggle').textContent = open ? 'Hide the numbers' : 'Show the numbers';
   if (open) renderTable(exactCurve(state.share), curveGeom ? curveGeom.domain : 100);
-});
+}
+$('table-toggle').addEventListener('click', () => toggleTable($('table-wrap').hidden));
 
 refresh(true);
+scheduleRun();
 </script>
 </body>
 </html>
