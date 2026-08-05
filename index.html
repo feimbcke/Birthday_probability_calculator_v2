@@ -305,7 +305,7 @@ tr.here td { color: var(--exact); font-weight: 700; }
         <h1 class="ask">
           <span class="soft">In a group of</span>
           <label class="vh" for="people">Number of people in the group</label>
-          <input class="slot slot-people num" id="people" type="number" min="1" max="1000" step="1" value="50">
+          <input class="slot slot-people num" id="people" type="number" min="1" max="1000" step="1" value="23">
           <span class="soft">people, how likely is it that</span>
           <label class="vh" for="share">People sharing one birthday</label>
           <input class="slot slot-share num" id="share" type="number" min="2" max="12" step="1" value="3">
@@ -354,9 +354,9 @@ tr.here td { color: var(--exact); font-weight: 700; }
       <div class="field">
         <div class="field-label">
           <label class="tag" for="people-range">Group size</label>
-          <span class="field-value" id="people-out">50 people</span>
+          <span class="field-value" id="people-out">23 people</span>
         </div>
-        <input id="people-range" type="range" min="1" max="400" step="1" value="50">
+        <input id="people-range" type="range" min="1" max="400" step="1" value="23">
       </div>
       <div class="field">
         <div class="field-label">
@@ -585,7 +585,7 @@ function niceTicks(min, max, count) {
 /* ══════════════════════════════════════════════════════════════
    4 · STATE
    ══════════════════════════════════════════════════════════════ */
-const state = { people: 50, share: 3, trials: 100000, sample: null, run: null };
+const state = { people: 23, share: 3, trials: 100000, sample: null, run: null };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const $ = id => document.getElementById(id);
 
