@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Birthday Coincidence — exact odds and simulation</title>
+<style>
+/* ─────────────────────────────────────────────────────────────
+   Ephemeris of coincidence — a measurement sheet for one year
+   ───────────────────────────────────────────────────────────── */
+:root {
+  color-scheme: light;
+  --plane:      #e6ebf1;
+  --surface:    #f7f9fb;
+  --surface-2:  #eef2f7;
+  --ink:        #101922;
+  --ink-2:      #4c5a6b;
+  --muted:      #7c8a9a;
+  --rule:       #d3dbe4;
+  --hairline:   rgba(16,25,34,0.10);
+  --exact:      #2a78d6;
+  --exact-wash: rgba(42,120,214,0.13);
+  --sim:        #eb6834;
+  --hit:        #c0257a;
+  --hit-wash:   rgba(192,37,122,0.12);
+  --bar:        #8fa1b4;
+  --focus:      #2a78d6;
+
+  --font-display: 'Bahnschrift', 'DIN Alternate', 'Archivo Narrow', 'Roboto Condensed', 'Segoe UI', system-ui, sans-serif;
+  --font-ui: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-data: ui-monospace, 'Cascadia Mono', 'Consolas', 'SF Mono', Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --plane:      #0c1015;
+    --surface:    #141920;
+    --surface-2:  #1b222b;
+    --ink:        #f2f5f8;
+    --ink-2:      #a8b6c4;
+    --muted:      #7c8a9a;
+    --rule:       #263140;
+    --hairline:   rgba(242,245,248,0.12);
+    --exact:      #3987e5;
+    --exact-wash: rgba(57,135,229,0.18);
+    --sim:        #d95926;
+    --hit:        #e0479a;
+    --hit-wash:   rgba(224,71,154,0.16);
+    --bar:        #55677c;
+    --focus:      #3987e5;
+  }
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--plane);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.55;
+  padding: clamp(14px, 3vw, 40px) clamp(12px, 3vw, 32px) 64px;
+}
+.sheet { max-width: 1180px; margin: 0 auto; }
+
+.display {
+  font-family: var(--font-display);
+  font-variation-settings: 'wdth' 85;
+  font-stretch: 87.5%;
+  letter-spacing: -0.015em;
+}
+.tag {
+  font-family: var(--font-data);
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.num { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+
+/* ── masthead ─────────────────────────────────────────────── */
+.masthead {
+  display: flex; flex-wrap: wrap; gap: 8px 20px;
+  justify-content: space-between; align-items: baseline;
+  padding-bottom: 10px;
+  border-bottom: 1.5px solid var(--ink);
+}
+.masthead .lede { color: var(--ink-2); }
+
+/* ── card shell ───────────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 3px;
+  padding: clamp(16px, 2.4vw, 26px);
+}
+.card + .card, .row + .card, .card + .row, .row + .row { margin-top: 14px; }
+.card-head {
+  display: flex; flex-wrap: wrap; gap: 6px 16px;
+  justify-content: space-between; align-items: baseline;
+  margin-bottom: 14px;
+}
+.card-title { font-size: 19px; font-weight: 600; margin: 0; }
+.card-note { color: var(--muted); font-size: 12.5px; max-width: 48ch; }
+
+/* ── hero: the question is the control ────────────────────── */
+.hero { margin-top: 18px; }
+.ask {
+  font-family: var(--font-display);
+  font-variation-settings: 'wdth' 85;
+  font-stretch: 87.5%;
+  font-size: clamp(25px, 4.1vw, 44px);
+  line-height: 1.24;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+  margin: 0;
+  max-width: 22ch;
+}
+.ask .soft { color: var(--ink-2); font-weight: 400; }
+
+.slot {
+  font: inherit;
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.86em;
+  font-weight: 700;
+  color: var(--exact);
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid var(--exact);
+  border-radius: 0;
+  padding: 0 1px;
+  margin: 0 1px;
+  text-align: center;
+  -moz-appearance: textfield;
+}
+.slot::-webkit-outer-spin-button, .slot::-webkit-inner-spin-button {
+  -webkit-appearance: none; margin: 0;
+}
+.slot:hover { background: var(--exact-wash); }
+.slot-people { width: 3.6ch; }
+.slot-share  { width: 2.4ch; }
+
+.verdict {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px;
+  margin-top: 22px;
+}
+.verdict-figure {
+  font-family: var(--font-display);
+  font-variation-settings: 'wdth' 80, 'wght' 700;
+  font-stretch: 82.5%;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(58px, 12vw, 128px);
+  line-height: 0.82;
+  letter-spacing: -0.035em;
+  color: var(--ink);
+}
+.verdict-side { display: flex; flex-direction: column; gap: 2px; padding-bottom: 6px; }
+.verdict-odds { font-family: var(--font-data); font-size: 13px; color: var(--ink-2); }
+.hero-grid { display: grid; gap: 26px; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); align-items: center; }
+@media (max-width: 780px) { .hero-grid { grid-template-columns: 1fr; gap: 18px; } }
+
+/* ── the year strip: signature ────────────────────────────── */
+.strip-wrap { margin-top: 22px; }
+.strip-scroll { overflow-x: auto; overflow-y: hidden; }
+.strip-scroll svg { display: block; width: 100%; height: auto; }
+@media (max-width: 700px) { .strip-scroll svg { min-width: 640px; } }
+.strip-caption {
+  display: flex; flex-wrap: wrap; gap: 8px 18px;
+  align-items: center; justify-content: space-between;
+  margin-top: 10px;
+}
+.strip-read { font-size: 13px; color: var(--ink-2); }
+.strip-read b { color: var(--hit); font-weight: 600; }
+
+/* ── controls ─────────────────────────────────────────────── */
+.controls { display: grid; gap: 18px 26px; grid-template-columns: minmax(0,2fr) minmax(0,1.3fr) auto; align-items: end; }
+@media (max-width: 860px) { .controls { grid-template-columns: 1fr; align-items: stretch; } }
+.field { display: flex; flex-direction: column; gap: 7px; }
+.field-label { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.field-value { font-family: var(--font-data); font-size: 13px; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+input[type=range] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 22px; background: transparent; margin: 0;
+}
+input[type=range]::-webkit-slider-runnable-track { height: 3px; background: var(--rule); border-radius: 0; }
+input[type=range]::-moz-range-track { height: 3px; background: var(--rule); }
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 13px; height: 22px; margin-top: -9.5px;
+  background: var(--exact); border: 0; border-radius: 1px; cursor: ew-resize;
+}
+input[type=range]::-moz-range-thumb {
+  width: 13px; height: 22px; background: var(--exact); border: 0; border-radius: 1px; cursor: ew-resize;
+}
+
+.seg { display: flex; border: 1px solid var(--rule); border-radius: 2px; overflow: hidden; }
+.seg button {
+  flex: 1; font-family: var(--font-data); font-size: 12px; letter-spacing: 0.02em;
+  padding: 7px 4px; background: transparent; color: var(--ink-2);
+  border: 0; border-left: 1px solid var(--rule); cursor: pointer;
+}
+.seg button:first-child { border-left: 0; }
+.seg button:hover { background: var(--surface-2); color: var(--ink); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+
+.run {
+  font-family: var(--font-display); font-variation-settings: 'wdth' 85; font-stretch: 87.5%;
+  font-size: 16px; font-weight: 600; letter-spacing: 0.01em;
+  padding: 11px 26px; min-width: 176px;
+  background: var(--ink); color: var(--surface);
+  border: 0; border-radius: 2px; cursor: pointer;
+}
+.run:hover { background: var(--exact); }
+.run[disabled] { background: var(--muted); cursor: progress; }
+
+.ghost {
+  font-family: var(--font-data); font-size: 11.5px; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--ink-2); background: transparent;
+  border: 1px solid var(--rule); border-radius: 2px;
+  padding: 6px 12px; cursor: pointer;
+}
+.ghost:hover { border-color: var(--ink); color: var(--ink); }
+
+:where(button, input, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus); outline-offset: 2px;
+}
+.vh {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+}
+
+/* ── panels ───────────────────────────────────────────────── */
+.row { display: grid; gap: 14px; grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
+@media (max-width: 940px) { .row { grid-template-columns: 1fr; } }
+.chart { position: relative; }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+
+.tip {
+  position: absolute; pointer-events: none; opacity: 0; transition: opacity .1s;
+  background: var(--ink); color: var(--surface);
+  font-family: var(--font-data); font-size: 11.5px; line-height: 1.5;
+  padding: 6px 9px; border-radius: 2px; white-space: nowrap; z-index: 5;
+  transform: translate(-50%, -120%);
+}
+.tip.on { opacity: 1; }
+.tip .k { color: var(--muted); }
+
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 12px; }
+.key { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--ink-2); }
+.swatch { width: 14px; height: 3px; border-radius: 2px; flex: none; }
+.swatch.dash { background: repeating-linear-gradient(90deg, var(--ink-2) 0 4px, transparent 4px 7px); }
+
+/* ── milestones + tiles ───────────────────────────────────── */
+.marks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--rule); border: 1px solid var(--rule); margin-top: 16px; }
+.mark { background: var(--surface); padding: 11px 13px; }
+.mark-k { font-family: var(--font-data); font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.mark-v { font-family: var(--font-display); font-variation-settings: 'wdth' 85; font-stretch: 87.5%; font-size: 26px; font-weight: 600; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.mark-u { font-size: 12px; color: var(--ink-2); margin-left: 4px; font-family: var(--font-ui); }
+
+.tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
+.tile { background: var(--surface); padding: 11px 13px; }
+.tile-k { font-family: var(--font-data); font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.tile-v { font-family: var(--font-data); font-variant-numeric: tabular-nums; font-size: 20px; line-height: 1.35; white-space: nowrap; }
+.tiles-note { font-family: var(--font-data); font-size: 11.5px; color: var(--muted); margin: 7px 0 4px; }
+.warn { font-size: 13px; color: var(--ink-2); margin: 10px 0 0; padding-left: 11px; border-left: 2px solid var(--hit); max-width: 52ch; }
+.tile-v.sim { color: var(--sim); }
+.tile-v.exact { color: var(--exact); }
+
+.empty { color: var(--muted); font-size: 13.5px; padding: 26px 0 4px; max-width: 42ch; }
+
+/* ── table view ───────────────────────────────────────────── */
+.table-wrap { overflow-x: auto; margin-top: 14px; }
+table { border-collapse: collapse; width: 100%; font-family: var(--font-data); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+th, td { text-align: right; padding: 5px 10px; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+th { color: var(--muted); font-weight: 400; letter-spacing: 0.08em; text-transform: uppercase; font-size: 10.5px; }
+td:first-child, th:first-child { text-align: left; }
+tr.here td { color: var(--exact); font-weight: 700; }
+
+/* ── colophon ─────────────────────────────────────────────── */
+.colophon { margin-top: 34px; padding-top: 16px; border-top: 1.5px solid var(--ink); display: grid; gap: 20px; grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
+@media (max-width: 780px) { .colophon { grid-template-columns: 1fr; } }
+.colophon p { margin: 8px 0 0; color: var(--ink-2); font-size: 13.5px; max-width: 62ch; }
+.colophon code { font-family: var(--font-data); font-size: 12.5px; color: var(--ink); background: var(--surface-2); padding: 1px 5px; border-radius: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+</style>
+</head>
+<body>
+<main class="sheet">
+
+  <header class="masthead">
+    <span class="tag">Birthday coincidence · exact + monte carlo</span>
+    <span class="tag">365-day year · birthdays uniform &amp; independent</span>
+  </header>
+
+  <!-- ── HERO ─────────────────────────────────────────────── -->
+  <section class="card hero">
+    <div class="hero-grid">
+      <div>
+        <h1 class="ask">
+          <span class="soft">In a group of</span>
+          <label class="vh" for="people">Number of people in the group</label>
+          <input class="slot slot-people num" id="people" type="number" min="1" max="1000" step="1" value="50">
+          <span class="soft">people, how likely is it that</span>
+          <label class="vh" for="share">People sharing one birthday</label>
+          <input class="slot slot-share num" id="share" type="number" min="2" max="12" step="1" value="3">
+          <span class="soft">share a birthday?</span>
+        </h1>
+      </div>
+      <div>
+        <div class="tag">Exact probability</div>
+        <div class="verdict">
+          <div class="verdict-figure num" id="figure">—</div>
+          <div class="verdict-side">
+            <div class="verdict-odds" id="odds"></div>
+            <div class="verdict-odds" id="restate"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="strip-wrap">
+      <div class="card-head" style="margin-bottom:8px">
+        <div>
+          <div class="tag">One random group, day by day</div>
+          <div class="card-note" id="strip-sub">Each column is a day of the year. Bar height is how many people in this draw were born that day.</div>
+        </div>
+        <button class="ghost" id="redraw" type="button">Draw another group</button>
+      </div>
+      <div class="chart">
+        <div class="strip-scroll">
+          <svg id="strip" viewBox="0 0 1492 158" role="img" aria-labelledby="strip-title"><title id="strip-title">A simulated year: number of people born on each of the 365 days</title></svg>
+        </div>
+        <div class="tip" id="strip-tip"></div>
+      </div>
+      <div class="strip-caption">
+        <div class="strip-read" id="strip-read"></div>
+        <div class="legend">
+          <span class="key"><span class="swatch" style="background:var(--bar);height:9px;width:5px"></span> Below the threshold</span>
+          <span class="key"><span class="swatch" style="background:var(--hit);height:9px;width:5px"></span> ▲ Meets the threshold</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── CONTROLS ─────────────────────────────────────────── -->
+  <section class="card">
+    <div class="controls">
+      <div class="field">
+        <div class="field-label">
+          <label class="tag" for="people-range">Group size</label>
+          <span class="field-value" id="people-out">50 people</span>
+        </div>
+        <input id="people-range" type="range" min="1" max="400" step="1" value="50">
+      </div>
+      <div class="field">
+        <div class="field-label">
+          <span class="tag" id="trials-label">Simulation trials</span>
+          <span class="field-value" id="trials-out">100,000</span>
+        </div>
+        <div class="seg" role="group" aria-labelledby="trials-label" id="trials">
+          <button type="button" data-n="1000">1K</button>
+          <button type="button" data-n="10000">10K</button>
+          <button type="button" data-n="100000" aria-pressed="true">100K</button>
+          <button type="button" data-n="1000000">1M</button>
+        </div>
+      </div>
+      <div class="field">
+        <button class="run" id="run" type="button">Run simulation</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── PANELS ───────────────────────────────────────────── -->
+  <div class="row">
+
+    <section class="card">
+      <div class="card-head">
+        <div>
+          <h2 class="card-title display">The odds as the group grows</h2>
+          <div class="card-note" id="curve-note"></div>
+        </div>
+      </div>
+      <div class="chart">
+        <svg id="curve" viewBox="0 0 480 300" role="img" aria-labelledby="curve-title"><title id="curve-title">Exact probability of a shared birthday against group size</title></svg>
+        <div class="tip" id="curve-tip"></div>
+      </div>
+      <div class="legend">
+        <span class="key"><span class="swatch" style="background:var(--exact)"></span> Exact probability</span>
+        <span class="key"><span class="swatch dash"></span> Your group</span>
+      </div>
+      <div class="marks" id="marks"></div>
+      <div style="margin-top:14px"><button class="ghost" id="table-toggle" type="button" aria-expanded="false">Show the numbers</button></div>
+      <div class="table-wrap" id="table-wrap" hidden></div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <div>
+          <h2 class="card-title display">What the simulation sees</h2>
+          <div class="card-note">Random trials wander toward the exact answer. The band is where 95% of honest estimates should land after that many trials.</div>
+        </div>
+      </div>
+      <div class="tiles" id="tiles" hidden></div>
+      <div class="tiles-note" id="tiles-note" hidden></div>
+      <p class="warn" id="conv-warn" hidden></p>
+      <div class="chart">
+        <svg id="conv" viewBox="0 0 480 280" role="img" aria-labelledby="conv-title"><title id="conv-title">Running simulation estimate converging on the exact probability</title></svg>
+        <div class="tip" id="conv-tip"></div>
+      </div>
+      <div class="legend" id="conv-legend" hidden>
+        <span class="key"><span class="swatch" style="background:var(--sim)"></span> Running estimate</span>
+        <span class="key"><span class="swatch dash"></span> Exact answer</span>
+        <span class="key"><span class="swatch" style="background:var(--exact-wash);height:9px"></span> 95% band</span>
+      </div>
+      <p class="empty" id="conv-empty">No trials yet. Run a simulation to watch a random experiment close in on the exact number — and see how many draws that takes.</p>
+    </section>
+
+  </div>
+
+  <!-- ── COLOPHON ─────────────────────────────────────────── -->
+  <footer class="colophon">
+    <div>
+      <span class="tag">Why both numbers</span>
+      <p>This question has a closed form, so the headline figure is not estimated at all. The chance that <em>no</em> day holds <span class="num" id="c-n">3</span> or more birthdays is <code>M! / 365^M</code> times the coefficient of <code>x^M</code> in <code>(1 + x + x²/2! + … + x^(N-1)/(N-1)!)^365</code>. The page multiplies that polynomial out directly — exact to roughly 14 digits, in about a millisecond.</p>
+    </div>
+    <div>
+      <span class="tag">Why simulate anyway</span>
+      <p>The simulation is kept because it shows what the formula hides: how long a random experiment takes to agree, and how wide the error stays until it does. At 1,000 trials the estimate is still worth about ±3 points. Sampling error shrinks with the square root of the trial count, so each extra digit of precision costs a hundred times the work.</p>
+    </div>
+  </footer>
+
+</main>
+
+<script>
+"use strict";
+
+/* ══════════════════════════════════════════════════════════════
+   1 · EXACT ENGINE
+   P(no day holds >= N) = M!/D^M · [x^M] ( Σ_{k<N} x^k/k! )^D
+   All coefficients are positive, so there is no cancellation:
+   normalising by the max each step keeps it stable to ~1e-14.
+   ══════════════════════════════════════════════════════════════ */
+const DAYS = 365, CAP = 1200;
+
+function lgamma(z) {
+  const g = [676.5203681218851, -1259.1392167224028, 771.32342877765313,
+             -176.61502916214059, 12.507343278686905, -0.13857109526572012,
+             9.9843695780195716e-6, 1.5056327351493116e-7];
+  if (z < 0.5) return Math.log(Math.PI / Math.sin(Math.PI * z)) - lgamma(1 - z);
+  z -= 1;
+  let x = 0.99999999999980993;
+  for (let i = 0; i < 8; i++) x += g[i] / (z + i + 1);
+  const t = z + 7.5;
+  return 0.5 * Math.log(2 * Math.PI) + (z + 0.5) * Math.log(t) - t + Math.log(x);
+}
+
+function polyMul(a, b, cap) {
+  const out = new Float64Array(Math.min(a.length + b.length - 1, cap + 1));
+  for (let i = 0; i < a.length; i++) {
+    const ai = a[i];
+    if (ai === 0) continue;
+    const jmax = Math.min(b.length - 1, cap - i);
+    for (let j = 0; j <= jmax; j++) out[i + j] += ai * b[j];
+  }
+  return out;
+}
+
+function rescale(p) {
+  let m = 0;
+  for (let i = 0; i < p.length; i++) if (p[i] > m) m = p[i];
+  if (m === 0 || m === 1) return 0;
+  for (let i = 0; i < p.length; i++) p[i] /= m;
+  return Math.log(m);
+}
+
+const curveCache = new Map();
+function exactCurve(N) {
+  const key = N;
+  if (curveCache.has(key)) return curveCache.get(key);
+
+  let base = new Float64Array(Math.min(N - 1, CAP) + 1);
+  for (let k = 0; k < base.length; k++) base[k] = Math.exp(-lgamma(k + 1));
+
+  let result = new Float64Array(1); result[0] = 1;
+  let scale = 0, bscale = rescale(base), e = DAYS;
+  while (e > 0) {
+    if (e & 1) { result = polyMul(result, base, CAP); scale += bscale + rescale(result); }
+    e >>= 1;
+    if (e > 0) { base = polyMul(base, base, CAP); bscale = 2 * bscale + rescale(base); }
+  }
+
+  const P = new Float64Array(CAP + 1);
+  const logD = Math.log(DAYS);
+  for (let m = 0; m <= CAP; m++) {
+    const c = m < result.length ? result[m] : 0;
+    if (c <= 0) { P[m] = 1; continue; }             // underflow ⇒ collision certain
+    P[m] = -Math.expm1(Math.min(0, Math.log(c) + scale + lgamma(m + 1) - m * logD));
+  }
+  P[0] = 0;
+  curveCache.set(key, P);
+  return P;
+}
+
+const firstAtLeast = (P, t) => { for (let i = 0; i < P.length; i++) if (P[i] >= t) return i; return null; };
+
+/* ══════════════════════════════════════════════════════════════
+   2 · FORMATTING
+   ══════════════════════════════════════════════════════════════ */
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+const commas = n => n.toLocaleString('en-US');
+
+function pct(p, wide) {
+  if (p <= 0) return '0%';
+  if (p >= 1) return '100%';
+  const v = p * 100;
+  if (v < 0.01) return v.toPrecision(2) + '%';
+  // never round a merely-very-likely answer up to a flat 100%
+  if (v > 99.99) { for (let d = 3; d <= 9; d++) { const s = v.toFixed(d); if (+s < 100) return s + '%'; } return '100%'; }
+  return v.toFixed(wide ? 3 : 2) + '%';
+}
+
+function oddsPhrase(p) {
+  if (p <= 0) return 'Impossible — the group is smaller than the threshold.';
+  if (p >= 0.999999) return 'Effectively certain.';
+  if (p > 0.42 && p < 0.58) return 'About the same as a coin flip.';
+  if (p >= 0.5) {
+    const k = 1 / (1 - p);
+    return k >= 1000 ? 'All but certain — fails in fewer than 1 in 1,000 groups'
+                     : 'Fails in about 1 in ' + k.toFixed(k < 10 ? 1 : 0) + ' groups';
+  }
+  const k = 1 / p;
+  return 'About 1 in ' + k.toFixed(k < 10 ? 1 : 0) + ' groups';
+}
+
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MLEN = [31,28,31,30,31,30,31,31,30,31,30,31];
+const MSTART = MLEN.reduce((a, d, i) => (a.push(a[i] + d), a), [0]);
+function dayLabel(d) {
+  let m = 0;
+  while (m < 11 && d >= MSTART[m + 1]) m++;
+  return MONTHS[m] + ' ' + (d - MSTART[m] + 1);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   3 · SVG HELPERS
+   ══════════════════════════════════════════════════════════════ */
+const NS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs, parent) {
+  const n = document.createElementNS(NS, tag);
+  for (const k in attrs) if (attrs[k] !== null && attrs[k] !== undefined) n.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(n);
+  return n;
+}
+function txt(parent, x, y, s, o) {
+  const t = el('text', Object.assign({ x, y, fill: 'var(--muted)', 'font-size': 11, 'font-family': 'var(--font-data)' }, o || {}), parent);
+  t.textContent = s;
+  return t;
+}
+const clear = n => { while (n.lastChild && n.lastChild.nodeName !== 'title') n.removeChild(n.lastChild); };
+
+/* An SVG scaled to its container scales its type down with it. Measure the
+   rendered width and express type in viewBox units that land near `target`
+   real pixels, so a chart is as legible on a phone as on a desktop. */
+function typeSize(svg, vbWidth, target) {
+  const w = svg.getBoundingClientRect().width;
+  return (target || 11.5) * (w > 40 ? clamp(vbWidth / w, 0.7, 2.8) : 1.35);
+}
+
+function niceTicks(min, max, count) {
+  const span = max - min || 1;
+  const raw = span / count;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = [1, 2, 2.5, 5, 10].find(s => s * mag >= raw) * mag;
+  const out = [];
+  for (let v = Math.ceil(min / step) * step; v <= max + 1e-9; v += step) out.push(Math.round(v * 1e6) / 1e6);
+  return out;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   4 · STATE
+   ══════════════════════════════════════════════════════════════ */
+const state = { people: 50, share: 3, trials: 100000, sample: null, run: null };
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = id => document.getElementById(id);
+
+/* ══════════════════════════════════════════════════════════════
+   5 · THE YEAR STRIP — one random group, day by day
+   ══════════════════════════════════════════════════════════════ */
+function drawGroup(people) {
+  const counts = new Int32Array(DAYS);
+  for (let i = 0; i < people; i++) counts[(Math.random() * DAYS) | 0]++;
+  return counts;
+}
+
+const stripSvg = $('strip'), stripTip = $('strip-tip');
+const S = { top: 14, plot: 104, cw: 4, ref: 1492, W: 1492, H: 158, base: 118, gut: 26 };
+
+function renderStrip(counts) {
+  clear(stripSvg);
+  const N = state.share;
+  let peak = 0, hits = 0;
+  for (let d = 0; d < DAYS; d++) { if (counts[d] > peak) peak = counts[d]; if (counts[d] >= N) hits++; }
+
+  // geometry follows the type size so the strip reads at any width
+  const fs = typeSize(stripSvg, S.ref, 12);
+  S.gut = Math.round(10 + 1.5 * fs);
+  S.base = S.top + S.plot;
+  S.W = S.gut + DAYS * S.cw + 10;
+  S.H = Math.round(S.base + 2.5 * fs);
+  stripSvg.setAttribute('viewBox', `0 0 ${S.W} ${S.H}`);
+
+  const X0 = S.gut, X1 = X0 + DAYS * S.cw;
+  const levels = Math.max(peak, N, 2);
+  const unit = Math.min(26, S.plot / levels);
+
+  // ledger lines — one per person, so a column can be counted by eye
+  for (let k = 1; k <= levels; k++) {
+    const y = S.base - k * unit;
+    const on = k === N;
+    el('line', { x1: X0, y1: y, x2: X1, y2: y,
+                 stroke: on ? 'var(--hit)' : 'var(--rule)', 'stroke-width': on ? 1.5 : 1,
+                 'stroke-dasharray': on ? '3 5' : null, opacity: on ? 1 : .55 }, stripSvg);
+    txt(stripSvg, X0 - 6, y + fs * 0.36, k, { 'text-anchor': 'end', 'font-size': fs, fill: on ? 'var(--hit)' : 'var(--muted)' });
+  }
+  el('line', { x1: X0, y1: S.base, x2: X1, y2: S.base, stroke: 'var(--rule)', 'stroke-width': 2 }, stripSvg);
+
+  // month divisions + labels
+  for (let m = 0; m < 12; m++) {
+    const x = X0 + MSTART[m] * S.cw;
+    if (m) el('line', { x1: x, y1: S.top - 4, x2: x, y2: S.base + 5, stroke: 'var(--rule)', 'stroke-width': 1, opacity: .8 }, stripSvg);
+    txt(stripSvg, x + MLEN[m] * S.cw / 2, S.base + fs * 1.7, MONTHS[m], { 'text-anchor': 'middle', 'font-size': fs });
+  }
+
+  // day columns — 2 units of surface between neighbouring fills
+  for (let d = 0; d < DAYS; d++) {
+    const c = counts[d];
+    if (!c) continue;
+    const hit = c >= N;
+    const h = c * unit;
+    const x = X0 + d * S.cw;
+    el('rect', { x: x + 1, y: S.base - h, width: S.cw - 2, height: h,
+                 fill: hit ? 'var(--hit)' : 'var(--bar)' }, stripSvg);
+    if (hit) el('path', { d: `M${x - 3} ${S.base - h - 6}L${x + 2} ${S.base - h - 15}L${x + 7} ${S.base - h - 6}Z`, fill: 'var(--hit)' }, stripSvg);
+  }
+  // haloed so it survives sitting over the data
+  txt(stripSvg, X1, Math.max(fs, S.base - N * unit - 7), N + ' sharing one day',
+      { 'text-anchor': 'end', fill: 'var(--hit)', 'font-size': fs,
+        stroke: 'var(--surface)', 'stroke-width': fs * 0.32, 'paint-order': 'stroke' });
+
+  const read = $('strip-read');
+  read.innerHTML = hits
+    ? `This draw hits: <b>${hits} day${hits > 1 ? 's' : ''}</b> with ${N} or more birthdays.`
+    : `This draw misses — no day reached ${N} birthdays. Peak was ${peak} on one day.`;
+}
+
+stripSvg.addEventListener('pointermove', e => {
+  if (!state.sample) return;
+  const r = stripSvg.getBoundingClientRect();
+  const vx = (e.clientX - r.left) / r.width * S.W;
+  const d = clamp(Math.floor((vx - S.gut) / S.cw), 0, DAYS - 1);
+  const c = state.sample[d];
+  stripTip.innerHTML = `${dayLabel(d)} <span class="k">·</span> ${c} ${c === 1 ? 'person' : 'people'}`;
+  stripTip.style.left = ((S.gut + (d + 0.5) * S.cw) / S.W * r.width) + 'px';
+  stripTip.style.top = (S.base / S.H * r.height) + 'px';
+  stripTip.classList.add('on');
+});
+stripSvg.addEventListener('pointerleave', () => stripTip.classList.remove('on'));
+
+/* ══════════════════════════════════════════════════════════════
+   6 · CURVE — exact probability against group size
+   ══════════════════════════════════════════════════════════════ */
+const curveSvg = $('curve'), curveTip = $('curve-tip');
+const C = { W: 480, H: 300, l: 40, r: 12, t: 14, b: 38 };
+let curveGeom = null;
+
+function renderCurve() {
+  clear(curveSvg);
+  const P = exactCurve(state.share), M = state.people;
+  const certain = firstAtLeast(P, 0.999) || CAP;
+  const domain = clamp(Math.max(Math.ceil(M * 1.2), Math.ceil(certain * 1.08), 25), 25, CAP);
+
+  const fs = typeSize(curveSvg, C.W);
+  const l = 14 + 2.7 * fs, b = 14 + 2.2 * fs;
+  const px = l, py = C.t, pw = C.W - l - C.r, ph = C.H - C.t - b;
+  const X = m => px + m / domain * pw;
+  const Y = p => py + (1 - p) * ph;
+  curveGeom = { X, Y, domain, P, px, py, pw, ph };
+
+  // grid + axes
+  for (const v of [0, .25, .5, .75, 1]) {
+    el('line', { x1: px, y1: Y(v), x2: px + pw, y2: Y(v), stroke: 'var(--rule)', 'stroke-width': 1 }, curveSvg);
+    txt(curveSvg, px - 8, Y(v) + fs * 0.36, (v * 100) + '%', { 'text-anchor': 'end', 'font-size': fs });
+  }
+  for (const v of niceTicks(0, domain, 5)) {
+    if (v === 0) continue;
+    el('line', { x1: X(v), y1: py + ph, x2: X(v), y2: py + ph + 4, stroke: 'var(--rule)' }, curveSvg);
+    txt(curveSvg, X(v), py + ph + fs * 1.5, commas(v), { 'text-anchor': 'middle', 'font-size': fs });
+  }
+  txt(curveSvg, px + pw / 2, C.H - fs * 0.35, 'people in the group', { 'text-anchor': 'middle', 'font-size': fs });
+
+  // area + line
+  let area = `M${X(0)} ${Y(0)}`, line = '';
+  for (let m = 0; m <= domain; m++) {
+    const x = X(m), y = Y(P[m]);
+    area += `L${x} ${y}`;
+    line += (m ? 'L' : 'M') + x + ' ' + y;
+  }
+  area += `L${X(domain)} ${Y(0)}Z`;
+  el('path', { d: area, fill: 'var(--exact-wash)' }, curveSvg);
+  el('path', { d: line, fill: 'none', stroke: 'var(--exact)', 'stroke-width': 2, 'stroke-linejoin': 'round' }, curveSvg);
+
+  // your group
+  if (M <= domain) {
+    const x = X(M), y = Y(P[M]);
+    el('line', { x1: x, y1: py, x2: x, y2: py + ph, stroke: 'var(--ink-2)', 'stroke-width': 1.5, 'stroke-dasharray': '4 3' }, curveSvg);
+    el('circle', { cx: x, cy: y, r: 5.5, fill: 'var(--exact)', stroke: 'var(--surface)', 'stroke-width': 2 }, curveSvg);
+    const flip = x > px + pw * 0.6;
+    txt(curveSvg, x + (flip ? -9 : 9), clamp(y - fs, py + fs, py + ph - 6), pct(P[M]),
+        { 'text-anchor': flip ? 'end' : 'start', fill: 'var(--ink)', 'font-size': fs * 1.08,
+          stroke: 'var(--surface)', 'stroke-width': fs * 0.3, 'paint-order': 'stroke' });
+  }
+
+  const half = firstAtLeast(P, 0.5);
+  if (half && half <= domain) {
+    el('circle', { cx: X(half), cy: Y(0.5), r: 3.5, fill: 'var(--surface)', stroke: 'var(--exact)', 'stroke-width': 2 }, curveSvg);
+  }
+
+  $('curve-note').textContent = `Every group size from 1 to ${commas(domain)}, computed exactly for ${state.share} people sharing one day.`;
+  renderMarks(P);
+  if (!$('table-wrap').hidden) renderTable(P, domain);
+}
+
+function renderMarks(P) {
+  const box = $('marks');
+  box.innerHTML = '';
+  for (const [label, t] of [['Even odds', .5], ['9 in 10', .9], ['99 in 100', .99]]) {
+    const m = firstAtLeast(P, t);
+    const d = document.createElement('div');
+    d.className = 'mark';
+    d.innerHTML = `<div class="mark-k">${label}</div><div class="mark-v">${m ? commas(m) : '—'}<span class="mark-u">${m ? 'people' : 'beyond 1,200'}</span></div>`;
+    box.appendChild(d);
+  }
+}
+
+function renderTable(P, domain) {
+  const sizes = new Set([1, 5, 10, 23, state.people]);
+  for (const t of [.01, .1, .25, .5, .75, .9, .99, .999]) { const m = firstAtLeast(P, t); if (m) sizes.add(m); }
+  const step = Math.max(1, Math.round(domain / 10));
+  for (let m = step; m <= domain; m += step) sizes.add(m);
+  const rows = [...sizes].filter(m => m >= 1 && m <= CAP).sort((a, b) => a - b);
+  $('table-wrap').innerHTML =
+    `<table><caption class="vh">Exact probability that ${state.share} people share a birthday, by group size</caption>` +
+    `<thead><tr><th>Group size</th><th>Probability</th><th>Odds</th></tr></thead><tbody>` +
+    rows.map(m => `<tr${m === state.people ? ' class="here"' : ''}><td>${commas(m)}</td><td>${pct(P[m], true)}</td>` +
+      `<td>${P[m] > 0 && P[m] < 1 ? '1 in ' + (1 / P[m]).toFixed(1) : '—'}</td></tr>`).join('') +
+    `</tbody></table>`;
+}
+
+curveSvg.addEventListener('pointermove', e => {
+  if (!curveGeom) return;
+  const g = curveGeom, r = curveSvg.getBoundingClientRect();
+  const sx = (e.clientX - r.left) / r.width * C.W;
+  if (sx < g.px || sx > g.px + g.pw) { curveTip.classList.remove('on'); return; }
+  const m = clamp(Math.round((sx - g.px) / g.pw * g.domain), 0, g.domain);
+  curveTip.innerHTML = `${commas(m)} people <span class="k">→</span> ${pct(g.P[m], true)}`;
+  curveTip.style.left = (g.X(m) / C.W * r.width) + 'px';
+  curveTip.style.top = (g.Y(g.P[m]) / C.H * r.height) + 'px';
+  curveTip.classList.add('on');
+});
+curveSvg.addEventListener('pointerleave', () => curveTip.classList.remove('on'));
+
+/* ══════════════════════════════════════════════════════════════
+   7 · MONTE CARLO — chunked so the page stays alive
+   ══════════════════════════════════════════════════════════════ */
+const convSvg = $('conv'), convTip = $('conv-tip');
+const V = { W: 480, H: 280, l: 46, r: 12, t: 16, b: 38 };
+let convGeom = null;
+
+function startRun() {
+  if (state.run) return;
+  const M = state.people, N = state.share, Z = state.trials;
+  const exact = exactCurve(N)[Math.min(M, CAP)];
+
+  const run = { M, N, Z, exact, done: 0, hits: 0, step: 20, track: [],
+                counts: new Int32Array(DAYS), drawn: new Int32Array(M), lastPaint: 0 };
+  state.run = run;
+
+  $('run').textContent = 'Stop';
+  $('conv-empty').hidden = true;
+  $('conv-legend').hidden = false;
+  $('tiles').hidden = false;
+  $('tiles-note').hidden = false;
+
+  // sampling cannot resolve odds this close to the edges — say so plainly
+  const warn = $('conv-warn');
+  warn.hidden = exact > 0.005 && exact < 0.995;
+  if (!warn.hidden) warn.textContent = exact >= 0.5
+    ? 'At odds this high nearly every trial hits, so the estimate parks on 100% and the last decimals stay out of reach. Shrink the group to watch sampling actually work.'
+    : 'At odds this low a whole run may record only a handful of hits, so the estimate steps in visible jumps. Raise the trial count, or the group size, for a smoother picture.';
+
+  // fixed y-window so the axis does not jitter mid-run
+  const sd = Math.sqrt(Math.max(exact * (1 - exact), 1e-6) / 200);
+  const pad = Math.max(0.012, 4.2 * sd);
+  run.lo = Math.max(0, exact - pad);
+  run.hi = Math.min(1, exact + pad);
+
+  const tick = () => {
+    if (state.run !== run) return;
+    const t0 = performance.now();
+    // work ~10ms per frame, then hand the thread back
+    while (run.done < run.Z && performance.now() - t0 < 10) {
+      // chunks grow geometrically, so the early trials — where the estimate
+      // actually moves — are recorded finely instead of in jumps of thousands
+      const chunk = Math.min(run.step, run.Z - run.done);
+      run.step = Math.min(4000, Math.ceil(run.step * 1.4));
+      for (let i = 0; i < chunk; i++) {
+        let hit = false;
+        for (let j = 0; j < M; j++) {
+          const d = (Math.random() * DAYS) | 0;
+          run.drawn[j] = d;
+          if (++run.counts[d] >= N) hit = true;
+        }
+        if (hit) run.hits++;
+        if (i === chunk - 1 && run.done + chunk >= run.Z) run.final = Int32Array.from(run.counts);
+        for (let j = 0; j < M; j++) run.counts[run.drawn[j]] = 0;
+      }
+      run.done += chunk;
+      const n = run.done;
+      if (n >= 20 && (run.track.length === 0 || n / run.track[run.track.length - 1][0] > 1.04 || n === run.Z))
+        run.track.push([n, run.hits / n]);
+    }
+
+    const now = performance.now();
+    if (!reduceMotion && now - run.lastPaint > 90) {
+      run.lastPaint = now;
+      renderConv(run); paintTiles(run);
+      if (run.Z > 20000) $('run').textContent = 'Stop · ' + Math.floor(run.done / run.Z * 100) + '%';
+    }
+
+    if (run.done < run.Z) { run.raf = requestAnimationFrame(tick); return; }
+
+    renderConv(run); paintTiles(run);
+    if (run.final) {
+      run.final.total = M;
+      state.sample = run.final;
+      renderStrip(run.final);
+      $('strip-sub').textContent = 'The last of ' + commas(run.Z) + ' simulated groups.';
+    }
+    state.run = null;
+    $('run').textContent = 'Run simulation';
+  };
+  run.raf = requestAnimationFrame(tick);
+}
+
+function paintTiles(run) {
+  const p = run.hits / run.done;
+  const se = Math.sqrt(Math.max(p * (1 - p), 0) / run.done);
+  $('tiles').innerHTML = [
+    ['Exact', pct(run.exact, true), 'exact'],
+    ['Simulated', pct(p, true), 'sim'],
+    ['Difference', (p >= run.exact ? '+' : '−') + (Math.abs(p - run.exact) * 100).toFixed(3) + ' pt', ''],
+    ['95% margin', '±' + (1.96 * se * 100).toFixed(3) + ' pt', '']
+  ].map(([k, v, c]) => `<div class="tile"><div class="tile-k">${k}</div><div class="tile-v ${c}">${v}</div></div>`).join('');
+  $('tiles-note').textContent =
+    `${commas(run.done)} trials · ${commas(run.M)} people · ${run.N} sharing one day`;
+}
+
+function renderConv(run) {
+  clear(convSvg);
+  const fs = typeSize(convSvg, V.W);
+  const l = 14 + 3.2 * fs, b = 14 + 2.2 * fs;
+  const px = l, py = V.t, pw = V.W - l - V.r, ph = V.H - V.t - b;
+  const lo = run.lo, hi = run.hi;
+  const x0 = Math.log10(20), x1 = Math.log10(Math.max(run.Z, 100));
+  const X = n => px + (Math.log10(Math.max(n, 20)) - x0) / (x1 - x0) * pw;
+  const Y = p => py + (1 - (clamp(p, lo, hi) - lo) / (hi - lo)) * ph;
+  convGeom = { X, Y, run, px, pw, x0, x1 };
+
+  for (const v of niceTicks(lo, hi, 4)) {
+    if (v < lo || v > hi) continue;
+    el('line', { x1: px, y1: Y(v), x2: px + pw, y2: Y(v), stroke: 'var(--rule)', 'stroke-width': 1 }, convSvg);
+    txt(convSvg, px - 8, Y(v) + fs * 0.36, (v * 100).toFixed(1) + '%', { 'text-anchor': 'end', 'font-size': fs });
+  }
+  for (let e = Math.ceil(x0); e <= x1 + 1e-9; e++) {
+    const n = Math.pow(10, e);
+    el('line', { x1: X(n), y1: py + ph, x2: X(n), y2: py + ph + 4, stroke: 'var(--rule)' }, convSvg);
+    txt(convSvg, X(n), py + ph + fs * 1.5, n >= 1e6 ? (n / 1e6) + 'M' : n >= 1000 ? (n / 1000) + 'K' : String(n), { 'text-anchor': 'middle', 'font-size': fs });
+  }
+  txt(convSvg, px + pw / 2, V.H - fs * 0.35, 'trials (log scale)', { 'text-anchor': 'middle', 'font-size': fs });
+
+  // 95% band around the exact answer
+  const p = run.exact;
+  let up = '', dn = [];
+  for (let i = 0; i <= 60; i++) {
+    const n = Math.pow(10, x0 + (x1 - x0) * i / 60);
+    const s = 1.96 * Math.sqrt(Math.max(p * (1 - p), 0) / n);
+    up += (i ? 'L' : 'M') + X(n) + ' ' + Y(p + s);
+    dn.push(`L${X(n)} ${Y(p - s)}`);
+  }
+  el('path', { d: up + dn.reverse().join('') + 'Z', fill: 'var(--exact-wash)' }, convSvg);
+
+  el('line', { x1: px, y1: Y(p), x2: px + pw, y2: Y(p), stroke: 'var(--ink-2)', 'stroke-width': 1.5, 'stroke-dasharray': '5 4' }, convSvg);
+  txt(convSvg, px + pw, Y(p) - 7, 'exact ' + pct(p),
+      { 'text-anchor': 'end', fill: 'var(--ink)', 'font-size': fs * 1.05,
+        stroke: 'var(--surface)', 'stroke-width': fs * 0.3, 'paint-order': 'stroke' });
+
+  if (run.track.length > 1) {
+    let d = '';
+    for (const [n, v] of run.track) d += (d ? 'L' : 'M') + X(n) + ' ' + Y(v);
+    el('clipPath', { id: 'convclip' }, convSvg).appendChild(
+      el('rect', { x: px, y: py - 2, width: pw, height: ph + 4 }));
+    el('path', { d, fill: 'none', stroke: 'var(--sim)', 'stroke-width': 2, 'stroke-linejoin': 'round', 'clip-path': 'url(#convclip)' }, convSvg);
+    const last = run.track[run.track.length - 1];
+    el('circle', { cx: X(last[0]), cy: Y(last[1]), r: 4.5, fill: 'var(--sim)', stroke: 'var(--surface)', 'stroke-width': 2 }, convSvg);
+  }
+}
+
+convSvg.addEventListener('pointermove', e => {
+  if (!convGeom || !convGeom.run.track.length) return;
+  const g = convGeom, r = convSvg.getBoundingClientRect();
+  const sx = (e.clientX - r.left) / r.width * V.W;
+  if (sx < g.px || sx > g.px + g.pw) { convTip.classList.remove('on'); return; }
+  const n = Math.pow(10, g.x0 + (sx - g.px) / g.pw * (g.x1 - g.x0));
+  let best = g.run.track[0];
+  for (const t of g.run.track) if (Math.abs(t[0] - n) < Math.abs(best[0] - n)) best = t;
+  convTip.innerHTML = `${commas(best[0])} trials <span class="k">→</span> ${pct(best[1], true)}`;
+  convTip.style.left = (g.X(best[0]) / V.W * r.width) + 'px';
+  convTip.style.top = (g.Y(best[1]) / V.H * r.height) + 'px';
+  convTip.classList.add('on');
+});
+convSvg.addEventListener('pointerleave', () => convTip.classList.remove('on'));
+
+/* keep=true halts early but keeps the partial result — it is still an
+   honest estimate, just at fewer trials. keep=false clears the panel,
+   which is what a changed parameter calls for. */
+function stopRun(keep) {
+  const run = state.run;
+  if (run) { cancelAnimationFrame(run.raf); state.run = null; $('run').textContent = 'Run simulation'; }
+  if (keep) { if (run) { renderConv(run); paintTiles(run); } return; }
+  $('tiles').hidden = true;
+  $('tiles-note').hidden = true;
+  $('conv-warn').hidden = true;
+  $('conv-legend').hidden = true;
+  $('conv-empty').hidden = false;
+  convGeom = null;
+  clear(convSvg);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   8 · WIRING
+   ══════════════════════════════════════════════════════════════ */
+function refresh(newSample) {
+  const P = exactCurve(state.share), p = P[Math.min(state.people, CAP)];
+  $('figure').textContent = pct(p);
+  $('odds').textContent = oddsPhrase(p);
+  $('restate').textContent = state.share > state.people
+    ? `${state.share} people cannot share a day in a group of ${state.people}.`
+    : `${commas(state.people)} people · ${state.share} on one day · 365 days`;
+  $('c-n').textContent = state.share;
+  $('people-out').textContent = commas(state.people) + (state.people === 1 ? ' person' : ' people');
+
+  if (newSample || !state.sample || state.sample.total !== state.people) {
+    state.sample = drawGroup(state.people);
+    state.sample.total = state.people;
+    $('strip-sub').textContent = 'Each column is a day of the year. Bar height is how many people in this draw were born that day.';
+  }
+  renderStrip(state.sample);
+  renderCurve();
+}
+
+function setPeople(v) {
+  state.people = clamp(Math.round(v) || 1, 1, 1000);
+  $('people').value = state.people;
+  $('people-range').value = Math.min(state.people, 400);
+  stopRun();
+  refresh(true);
+}
+function setShare(v) {
+  state.share = clamp(Math.round(v) || 2, 2, 12);
+  $('share').value = state.share;
+  stopRun();
+  refresh(false);
+}
+
+$('people').addEventListener('change', e => setPeople(+e.target.value));
+$('people-range').addEventListener('input', e => setPeople(+e.target.value));
+$('share').addEventListener('change', e => setShare(+e.target.value));
+$('redraw').addEventListener('click', () => { state.sample = null; refresh(true); });
+$('run').addEventListener('click', () => state.run ? stopRun(true) : startRun());
+
+$('trials').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  state.trials = +b.dataset.n;
+  for (const x of $('trials').children) x.setAttribute('aria-pressed', String(x === b));
+  $('trials-out').textContent = commas(state.trials);
+  stopRun();
+});
+
+$('table-toggle').addEventListener('click', () => {
+  const w = $('table-wrap'), open = w.hidden;
+  w.hidden = !open;
+  $('table-toggle').setAttribute('aria-expanded', String(open));
+  $('table-toggle').textContent = open ? 'Hide the numbers' : 'Show the numbers';
+  if (open) renderTable(exactCurve(state.share), curveGeom ? curveGeom.domain : 100);
+});
+
+refresh(true);
+</script>
+</body>
+</html>
