@@ -646,6 +646,7 @@ function exactCurve(N) {
   const logD = Math.log(DAYS), logT = Math.log(T), logr = Math.log(r);
   let last = 0;
   for (let m = 0; m < P.length; m++) {
+    if (m < N) continue;                               // exactly zero, not 1e-14 of one
     if (m > pigeon) { P[m] = 1; last = 1; continue; }
     const c = m < q.length ? q[m] : 0;
     if (c <= 0) { P[m] = last; continue; }           // below representable: hold monotone
@@ -678,8 +679,19 @@ function pct(p, wide) {
   return v.toFixed(wide ? 3 : 2) + '%';
 }
 
+/* Genuinely impossible: fewer people in the room than the threshold asks for.
+   This is the only case that earns the word. */
+const impossiblePhrase = (N, M) =>
+  `Impossible — ${commas(M)} ${M === 1 ? 'person' : 'people'} cannot put ${N} on one day.`;
+
+/* Zero hits is not a measurement of zero. The rule of three: after Z trials with
+   no hit, the 95% upper bound on the true rate is about 3/Z. */
+const zeroHitPhrase = Z =>
+  `Too rare for sampling to measure — not zero. No hits in ${commas(Z)} trials only puts the ` +
+  `true chance below about 1 in ${commas(Math.round(Z / 3))}.`;
+
 function oddsPhrase(p) {
-  if (p <= 0) return 'Impossible — the group is smaller than the threshold.';
+  if (p <= 0) return 'Too small for this many trials to resolve.';
   if (p >= 0.999999) return 'Effectively certain.';
   if (p > 0.42 && p < 0.58) return 'About the same as a coin flip.';
   if (p >= 0.5) {
@@ -781,7 +793,8 @@ function renderStrip(counts) {
     el('line', { x1: X0, y1: y, x2: X1, y2: y,
                  stroke: on ? 'var(--hit)' : 'var(--rule)', 'stroke-width': on ? 1.5 : 1,
                  'stroke-dasharray': on ? '3 5' : null, opacity: on ? 1 : .55 }, stripSvg);
-    if (on || k % stride === 0)
+    // the threshold is always labelled; a strided label yields to it if too close
+    if (on || (k % stride === 0 && Math.abs(k - N) * unit > fs * 1.05))
       txt(stripSvg, X0 - 6, y + fs * 0.36, k, { 'text-anchor': 'end', 'font-size': fs, fill: on ? 'var(--hit)' : 'var(--muted)' });
   }
   el('line', { x1: X0, y1: S.base, x2: X1, y2: S.base, stroke: 'var(--rule)', 'stroke-width': 2 }, stripSvg);
@@ -1016,8 +1029,18 @@ function startRun() {
 function recordResult(run) {
   if (!run.done) return;
   const p = run.hits / run.done;
-  state.result = { M: run.M, N: run.N, Z: run.done, p, se: Math.sqrt(Math.max(p * (1 - p), 0) / run.done) };
-  if (!isExact(run.N)) refresh(false);
+  state.result = { M: run.M, N: run.N, Z: run.done, p, hits: run.hits,
+                   se: Math.sqrt(Math.max(p * (1 - p), 0) / run.done) };
+
+  // with no exact value to fall back on, a thin hit count is worth saying out loud
+  if (!isExact(run.N)) {
+    const warn = $('conv-warn');
+    warn.hidden = run.hits >= 10 || run.N > run.M;
+    if (!warn.hidden) warn.textContent = run.hits === 0
+      ? `Not one of these ${commas(run.done)} trials hit, so there is nothing to plot and no estimate to make — only the bound above. Enlarge the group, lower the threshold, or raise the trial count.`
+      : `Only ${run.hits} hits in ${commas(run.done)} trials. At that rate a single hit either way moves the estimate by ${(100 / run.done).toFixed(4)} points, so treat the digits with suspicion.`;
+    refresh(false);
+  }
 }
 
 function paintTiles(run) {
@@ -1134,24 +1157,40 @@ function stopRun(keep) {
 function refresh(newSample) {
   const N = state.share, M = state.people, exact = isExact(N);
 
+  const size = `${commas(M)} people · at least ${N} on one day · 365 days`;
+
   if (exact) {
     const p = exactAt(N, M);
-    $('figure').textContent = pct(p);
-    $('odds').textContent = oddsPhrase(p);
     $('figure-label').textContent = 'Exact probability';
-    $('restate').textContent = N > M
-      ? `${N} people cannot share a day in a group of ${commas(M)}.`
-      : `${commas(M)} people · at least ${N} on one day · 365 days`;
+    $('figure').textContent = pct(p);
+    $('odds').textContent = N > M ? impossiblePhrase(N, M) : oddsPhrase(p);
+    $('restate').textContent = size;
   } else {
     const r = state.result;
-    $('figure-label').textContent = 'Estimated by simulation';
-    $('figure').textContent = r ? pct(r.p) : '—';
-    $('odds').textContent = r
-      ? oddsPhrase(r.p) + ' (±' + (1.96 * r.se * 100).toFixed(3) + ' pt)'
-      : 'Run a simulation to estimate this.';
-    $('restate').textContent = r
-      ? `estimated from ${commas(r.Z)} trials · at least ${N} on one day`
-      : `${commas(M)} people · at least ${N} on one day · 365 days`;
+    if (N > M) {
+      // no simulation needed, and none can change it
+      $('figure-label').textContent = 'Exact probability';
+      $('figure').textContent = '0%';
+      $('odds').textContent = impossiblePhrase(N, M);
+      $('restate').textContent = size;
+    } else if (!r) {
+      $('figure-label').textContent = 'Estimated by simulation';
+      $('figure').textContent = '—';
+      $('odds').textContent = 'Run a simulation to estimate this.';
+      $('restate').textContent = size;
+    } else if (!r.hits) {
+      // report the bound the trials actually support, not the empty count
+      $('figure-label').textContent = 'Upper bound from simulation';
+      $('figure').textContent = '<' + pct(3 / r.Z);
+      $('odds').textContent = zeroHitPhrase(r.Z);
+      $('restate').textContent = `0 hits in ${commas(r.Z)} trials · at least ${N} on one day`;
+    } else {
+      $('figure-label').textContent = 'Estimated by simulation';
+      $('figure').textContent = pct(r.p);
+      $('odds').textContent = oddsPhrase(r.p) + ' (±' + (1.96 * r.se * 100).toFixed(3) + ' pt)';
+      $('restate').textContent =
+        `${commas(r.hits)} hits in ${commas(r.Z)} trials · at least ${N} on one day`;
+    }
   }
 
   $('c-n').textContent = N;
